@@ -1,6 +1,6 @@
 import { Component, ViewChild} from '@angular/core';
 import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 
 @Component({
   selector: 'app-root',
@@ -13,31 +13,51 @@ export class AppComponent {
 
     constructor(private http: HttpClient){}
     
-    dataset: String;
+    private API_DEST:String = "https://uj7p7hp052.execute-api.eu-west-1.amazonaws.com/default";
 
-    ngOnInit() {
-        //this.generateChartData();
-        this.showData();
-        console.log(this.dataset);
+    dataStr: String;
+
+    dayBegin:string = (new Date().setHours(0,0,0,0)).toString(); //ms of dayBegin
+    dayEnd:string = (new Date().setHours(23,59,59,999)).toString();;  //ms of dayEnd
+
+    async ngOnInit(): Promise<void>{
+        this.generateChartData();
+        //this.showData();
+        await this.getData();
+        console.log(this.dayBegin, this.dayEnd);
     }
 
-    getData() {
-        return this.http.get("https://bfdcj6amh2.execute-api.eu-west-1.amazonaws.com/default/getSigfoxData");
+    getData() : Promise<any>{
+        const URL = this.API_DEST+"/getSigfoxDataByDate";//?from=%22"+this.dayBegin+"%22&to=%22"+this.dayEnd+"%22";
+        let params = new HttpParams();
+        params = params.append('from', "\""+this.dayBegin+"\"");
+        params = params.append('to', "\""+this.dayEnd+"\"");
+        
+        //TODO: CORS Problem need to be fix
+
+        console.log(URL);
+        return this.http.get(URL, {params: params})
+            .toPromise()
+            .then(response => {this.dataStr = JSON.stringify(response);})
+            .catch(err=>{console.log(err);});
     }
+
+
+
     showData() {
-        this.getData().subscribe(data => {
-            let max = 800;
-            for(let i=0; i<data["Items"].length; i++){
-                console.log(new Date(parseInt(data["Items"][i].timestamp).valueOf()));
-                this.data.push({ timestamp: new Date(parseInt(data["Items"][i].timestamp).valueOf()), value: Math.max(100, (Math.random() * 1000) % max) });
-            }
-            this.dataset = JSON.stringify(data);
-            this.data = this.data.reverse();
-        });
+        // this.getData().subscribe(data => {
+        //     let max = 800;
+        //     for(let i=0; i<data["Items"].length; i++){
+        //         console.log(new Date(parseInt(data["Items"][i].timestamp).valueOf()));
+        //         this.data.push({ timestamp: new Date(parseInt(data["Items"][i].timestamp).valueOf()), value: Math.max(100, (Math.random() * 1000) % max) });
+        //     }
+        //     this.dataset = JSON.stringify(data);
+        //     this.data = this.data.reverse();
+        // });
     }
 
     getWidth() : any {
-    return '100%';
+        return '100%';
     }
 
     ngAfterViewInit(): void {
@@ -56,8 +76,14 @@ export class AppComponent {
 
     data: any[] = [];
 
-    padding: any = { left: 5, top: 5, right: 5, bottom: 5 };
+    // sigfox data sets
+    tempData: any[] = [];
+    humData: any[] = [];
+    presData: any[] = [];
+    gasData: any[] = [];
 
+
+    padding: any = { left: 5, top: 5, right: 5, bottom: 5 };
     titlePadding: any = { left: 0, top: 0, right: 0, bottom: 10 };
 
     xAxis: any =
@@ -122,13 +148,16 @@ export class AppComponent {
     generateChartData = () => {
         let max = 800;
         let timestamp = new Date();
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < 30; i++) {
             timestamp.setMilliseconds(0);
             timestamp.setSeconds(timestamp.getSeconds() - 1);
-            console.log(timestamp.valueOf());
+            //console.log(timestamp.valueOf());
             this.data.push({ timestamp: new Date(timestamp.valueOf()), value: Math.max(100, (Math.random() * 1000) % max) });
         }
         this.data = this.data.reverse();
+        console.log(this.data);
     }
+
+    
 
 }

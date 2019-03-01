@@ -8,6 +8,7 @@ import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxcha
 //import CanvasJS from 'canvasjs';
 
 
+
 @NgModule({
   declarations: [
     AppComponent,
