@@ -12,27 +12,34 @@ export class AppComponent {
   @ViewChild('myChart') myChart: jqxChartComponent;
 
     constructor(private http: HttpClient){}
-    
-    private API_DEST:String = "https://uj7p7hp052.execute-api.eu-west-1.amazonaws.com/default";
 
-    dataStr: String;
+    //data string from aws api
+    dataStr: string;
+
+    // sigfox data sets
+    tempData: any[] = [];
+    humData: any[] = [];
+    presData: any[] = [];
+    gasData: any[] = [];
+
 
     dayBegin:string = (new Date().setHours(0,0,0,0)).toString(); //ms of dayBegin
     dayEnd:string = (new Date().setHours(23,59,59,999)).toString();;  //ms of dayEnd
 
     async ngOnInit(): Promise<void>{
-        this.generateChartData();
+        //this.generateChartData();
         //this.showData();
         await this.getData();
-        console.log(this.dayBegin, this.dayEnd);
+        //console.log(this.dataStr);
+        this.getSigfoxData();
     }
 
     getData() : Promise<any>{
-        const URL = this.API_DEST+"/getSigfoxDataByDate";//?from=%22"+this.dayBegin+"%22&to=%22"+this.dayEnd+"%22";
+        const URL = "/default/getSigfoxDataByDate";//?from=%22"+this.dayBegin+"%22&to=%22"+this.dayEnd+"%22";
         let params = new HttpParams();
-        params = params.append('from', "\""+this.dayBegin+"\"");
-        params = params.append('to', "\""+this.dayEnd+"\"");
-        
+        params = params.append('from', "\""+1551312000000+"\"");//this.dayBegin
+        params = params.append('to', "\""+1551398399999+"\"");//this.dayEnd
+    
         //TODO: CORS Problem need to be fix
 
         console.log(URL);
@@ -42,6 +49,32 @@ export class AppComponent {
             .catch(err=>{console.log(err);});
     }
 
+        getSigfoxData= () => {
+        let dataJSON = JSON.parse(this.dataStr);
+        let bodyJSON = JSON.parse(dataJSON.body);
+        let ItemsArray = bodyJSON.Items;
+        console.log(ItemsArray);
+
+        ItemsArray.forEach(function (aItem) {
+            let temp = parseInt(aItem.payload.temp,10)/10;
+            let hum = parseInt(aItem.payload.hum,10)/10;
+            let pres = parseInt(aItem.payload.pres,10)/10;
+            let gas = parseInt(aItem.payload.gas,10)/10;
+            let timestamp = parseInt(aItem.timestamp,10);
+            
+            this.data.push({ timestamp: new Date(timestamp), value: temp });
+            this.humData.push({ timestamp: new Date(timestamp), value: hum });
+            this.presData.push({ timestamp: new Date(timestamp), value: pres });
+            this.gasData.push({ timestamp: new Date(timestamp), value: gas });
+        }.bind(this));
+
+        this.data = this.data.reverse();
+        this.humData = this.humData.reverse();
+        this.presData = this.presData.reverse();
+        this.gasData = this.gasData.reverse();
+
+        console.log(this.tempData);
+    }
 
 
     showData() {
@@ -76,12 +109,7 @@ export class AppComponent {
 
     data: any[] = [];
 
-    // sigfox data sets
-    tempData: any[] = [];
-    humData: any[] = [];
-    presData: any[] = [];
-    gasData: any[] = [];
-
+    
 
     padding: any = { left: 5, top: 5, right: 5, bottom: 5 };
     titlePadding: any = { left: 0, top: 0, right: 0, bottom: 10 };
@@ -91,7 +119,7 @@ export class AppComponent {
         dataField: 'timestamp',
         type: 'date',
         baseUnit: 'second',
-        unitInterval: 2,
+        unitInterval: 60,
         formatFunction: (value: any) => {
             return jqx.dataFormat.formatdate(value, 'hh:mm:ss', 'en-us');
         },
@@ -116,8 +144,8 @@ export class AppComponent {
             alignEndPointsWithIntervals: true,
             valueAxis:
             {
-                minValue: 0,
-                maxValue: 1000,
+                minValue: -30,
+                maxValue: 50,
                 title: { text: 'Index Value' }
             },
             series: [
