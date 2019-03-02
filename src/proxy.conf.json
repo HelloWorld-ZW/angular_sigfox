@@ -1,0 +1,8 @@
+{
+    "/default/*": {
+        "target": "https://uj7p7hp052.execute-api.eu-west-1.amazonaws.com/",
+        "secure": false,
+        "changeOrigin": true,
+        "logLevel": "debug"
+    }
+  }
