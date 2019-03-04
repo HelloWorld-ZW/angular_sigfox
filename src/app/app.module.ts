@@ -4,15 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 
 import { AppComponent } from './app.component';
-import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
+//import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
 //import CanvasJS from 'canvasjs';
-
 
 
 @NgModule({
   declarations: [
-    AppComponent,
-    jqxChartComponent
+    AppComponent
   ],
   imports: [
     BrowserModule,

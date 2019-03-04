@@ -1,6 +1,7 @@
 import { Component, ViewChild} from '@angular/core';
-import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
 import { HttpClient, HttpParams } from '@angular/common/http';
+import * as CanvasJS from '../lib/canvasjs.min';
+
 
 @Component({
   selector: 'app-root',
@@ -8,13 +9,12 @@ import { HttpClient, HttpParams } from '@angular/common/http';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
-
-  @ViewChild('myChart') myChart: jqxChartComponent;
-
     constructor(private http: HttpClient){}
+
 
     //data string from aws api
     dataStr: string;
+    latestDataStr:string;
 
     // sigfox data sets
     tempData: any[] = [];
@@ -25,22 +25,95 @@ export class AppComponent {
 
     dayBegin:string = (new Date().setHours(0,0,0,0)).toString(); //ms of dayBegin
     dayEnd:string = (new Date().setHours(23,59,59,999)).toString();;  //ms of dayEnd
+    latestDbTimestamp:string =(new Date().getTime()).toString();
 
     async ngOnInit(): Promise<void>{
-        //this.generateChartData();
+
         //this.showData();
-        await this.getData();
-        //console.log(this.dataStr);
-        this.getSigfoxData();
+        //await this.geInittData();
+        
+        // this.processInitData();
+        // console.log(this.tempData );
+
+
+        var dps = [];
+        var chart = new CanvasJS.Chart("chartContainer", {
+            theme: "light2",
+            title:{
+                text:"Temperature"
+            },
+            animationEnabled: true,
+            exportEnabled: true,
+            axisX: {
+                valueFormatString: "DD/MM/YY hh:mm:ss"      
+            },
+            axisY: {
+                includeZero: false,
+                suffix: "°C"
+            },
+            data: [{
+                toolTipContent: "<b>{x}</b> : {y}°C",
+                type: "spline",
+                name : "Temperature (°C)",
+                showInLegend: true,
+                //markerType: "square",
+                dataPoints: dps
+            }]
+        });
+
+        var latest = (new Date().setHours(0,0,0,0)).toString();
+        
+        
+        let updateChart = function(){
+
+            var current = (new Date().getTime()).toString();
+
+            const URL = "/default/getSigfoxDataByDate";//?from=%22"+this.dayBegin+"%22&to=%22"+this.dayEnd+"%22";
+            let params = new HttpParams();
+            params = params.append('from', "\""+latest+"\"");//1551312000000 this.dayBegin latest
+            params = params.append('to', "\""+current+"\"");//1551398399999 this.dayEnd current
+ 
+            this.http.get(URL, {params: params})
+                .toPromise()
+                .then(response => {
+                    var dataJSON = JSON.parse(JSON.stringify(response));
+                    let bodyJSON = JSON.parse(dataJSON.body);
+                    let ItemsArray = bodyJSON.Items;
+                    //console.log(ItemsArray);
+
+                    ItemsArray.forEach(function (aItem) {
+                        let temp = parseInt(aItem.payload.temp,10)/10;
+                        let timestamp = parseInt(aItem.timestamp,10);
+                        console.log(typeof timestamp);
+                        dps.push({ x: new Date(timestamp), y: temp });
+                        latest = (timestamp+1).toString();
+                    }.bind(this));
+
+                    chart.render();
+                })
+                .catch(err=>{console.log(err);});
+            }.bind(this);
+
+            
+            updateChart();
+            let timer = setInterval(function(){
+                updateChart();
+            }.bind(this),10000);
+            
+            console.log(dps);
+
     }
 
-    getData() : Promise<any>{
+
+
+
+
+    geInittData() : Promise<any>{
+        
         const URL = "/default/getSigfoxDataByDate";//?from=%22"+this.dayBegin+"%22&to=%22"+this.dayEnd+"%22";
         let params = new HttpParams();
-        params = params.append('from', "\""+1551312000000+"\"");//this.dayBegin
-        params = params.append('to', "\""+1551398399999+"\"");//this.dayEnd
-    
-        //TODO: CORS Problem need to be fix
+        params = params.append('from', "\""+this.dayBegin+"\"");//1551312000000 this.dayBegin
+        params = params.append('to', "\""+this.dayEnd+"\"");//1551398399999 this.dayEnd
 
         console.log(URL);
         return this.http.get(URL, {params: params})
@@ -49,7 +122,7 @@ export class AppComponent {
             .catch(err=>{console.log(err);});
     }
 
-        getSigfoxData= () => {
+    processInitData= () => {
         let dataJSON = JSON.parse(this.dataStr);
         let bodyJSON = JSON.parse(dataJSON.body);
         let ItemsArray = bodyJSON.Items;
@@ -61,131 +134,94 @@ export class AppComponent {
             let pres = parseInt(aItem.payload.pres,10)/10;
             let gas = parseInt(aItem.payload.gas,10)/10;
             let timestamp = parseInt(aItem.timestamp,10);
-            
-            this.data.push({ timestamp: new Date(timestamp), value: temp });
-            this.humData.push({ timestamp: new Date(timestamp), value: hum });
-            this.presData.push({ timestamp: new Date(timestamp), value: pres });
-            this.gasData.push({ timestamp: new Date(timestamp), value: gas });
+            console.log(typeof timestamp);
+            this.tempData.push({ x: new Date(timestamp), y: temp });
+            this.humData.push({ x: new Date(timestamp), y: hum });
+            this.presData.push({ x: new Date(timestamp), y: pres });
+            this.gasData.push({ x: new Date(timestamp), y: gas });
+            this.latestDbTimestamp = timestamp+1;
         }.bind(this));
 
-        this.data = this.data.reverse();
+        this.tempData = this.tempData.reverse();
         this.humData = this.humData.reverse();
         this.presData = this.presData.reverse();
         this.gasData = this.gasData.reverse();
-
-        console.log(this.tempData);
+        // console.log(this.tempData);
     }
 
+    getLatestData(): Promise<any>{
+        const URL = "/default/getSigfoxDataByDate";//?from=%22"+this.dayBegin+"%22&to=%22"+this.dayEnd+"%22";
+        let params = new HttpParams();
+        params = params.append('from', "\""+this.latestDbTimestamp+"\"");
+        params = params.append('to', "\""+new Date().getTime()+"\"");
+    
+        //TODO: CORS Problem need to be fix
 
-    showData() {
-        // this.getData().subscribe(data => {
-        //     let max = 800;
-        //     for(let i=0; i<data["Items"].length; i++){
-        //         console.log(new Date(parseInt(data["Items"][i].timestamp).valueOf()));
-        //         this.data.push({ timestamp: new Date(parseInt(data["Items"][i].timestamp).valueOf()), value: Math.max(100, (Math.random() * 1000) % max) });
-        //     }
-        //     this.dataset = JSON.stringify(data);
-        //     this.data = this.data.reverse();
-        // });
+        console.log(URL);
+        return this.http.get(URL, {params: params})
+            .toPromise()
+            .then(response => {this.processLatestData(response)})
+            .catch(err=>{console.log(err);});
     }
+
+    processLatestData= (response) => {
+        let dataJSON = JSON.parse(JSON.stringify(response));
+        let bodyJSON = JSON.parse(dataJSON.body);
+        console.log("found: "+bodyJSON.Count);
+        if(bodyJSON.Count>0){
+            let ItemsArray = bodyJSON.Items;
+            for(let i=0;i<ItemsArray.length;i++){
+                let temp = parseInt(ItemsArray[i].payload.temp,10)/10;
+                let timestamp = parseInt(ItemsArray[i].timestamp,10);
+                this.tempData.push({ x: new Date(timestamp), y: temp });
+
+                console.log("new data @: "+ ItemsArray[i].timestamp);
+                this.latestDbTimestamp = (parseInt(ItemsArray[i].timestamp,10)+1).toString();
+            }
+        }
+        else{
+            console.log("no new found");
+        }
+    }
+
 
     getWidth() : any {
         return '100%';
     }
 
-    ngAfterViewInit(): void {
-        let data = this.myChart.source();
-        // let timer = setInterval(() => {
-        //     let max = 800;
-        //     if (data.length >= 60)
-        //         data.splice(0, 1);
-        //     let timestamp = new Date();
-        //     timestamp.setSeconds(timestamp.getSeconds());
-        //     timestamp.setMilliseconds(0);
-        //     data.push({ timestamp: timestamp, value: Math.max(100, (Math.random() * 1000) % max) });
-        //     this.myChart.update();
-        // }, 1000);
+    async ngAfterViewInit(): Promise<void> {
+        // let data = this.myChart.source();
+
+        let timer = setInterval(function(){
+            this.getLatestData();
+        }.bind(this),10000);
     }
 
-    data: any[] = [];
-
-    
-
-    padding: any = { left: 5, top: 5, right: 5, bottom: 5 };
-    titlePadding: any = { left: 0, top: 0, right: 0, bottom: 10 };
-
-    xAxis: any =
-    {
-        dataField: 'timestamp',
-        type: 'date',
-        baseUnit: 'second',
-        unitInterval: 60,
-        formatFunction: (value: any) => {
-            return jqx.dataFormat.formatdate(value, 'hh:mm:ss', 'en-us');
-        },
-        gridLines: { step: 2 },
-        valuesOnTicks: true,
-        labels: { angle: -45, offset: { x: -17, y: 0 } }
-    };
-
-    valueAxis: any =
-    {
-        minValue: 0,
-        maxValue: 1000,
-        title: { text: 'Index Value' },
-        labels: { horizontalAlignment: 'right' }
-    };
-
-    seriesGroups: any[] =
-    [
-        {
-            type: 'line',
-            columnsGapPercent: 50,
-            alignEndPointsWithIntervals: true,
-            valueAxis:
-            {
-                minValue: -30,
-                maxValue: 50,
-                title: { text: 'Index Value' }
-            },
-            series: [
-                { dataField: 'value', displayText: 'value', opacity: 1, lineWidth: 2, symbolType: 'circle', fillColorSymbolSelected: 'white', symbolSize: 4 }
-            ]
-        }
-    ];
-
-    colorsSchemesList: string[] = ['scheme01', 'scheme02', 'scheme03', 'scheme04', 'scheme05', 'scheme06', 'scheme07', 'scheme08'];
-
-    seriesList: string[] = ['splinearea', 'spline', 'column', 'scatter', 'stackedcolumn', 'stackedsplinearea', 'stackedspline'];
-
-    colorsOnChange(event: any): void {
-        let value = event.args.item.value;
-        this.myChart.colorScheme(value);
-        this.myChart.update();
-    }
-
-    seriesOnChange(event: any): void {
-        let args = event.args;
-        if (args) {
-            let value = args.item.value;
-            this.myChart.seriesGroups()[0].type = value;
-            this.myChart.update();
-        }
-    }
-
-    generateChartData = () => {
-        let max = 800;
-        let timestamp = new Date();
-        for (let i = 0; i < 30; i++) {
-            timestamp.setMilliseconds(0);
-            timestamp.setSeconds(timestamp.getSeconds() - 1);
-            //console.log(timestamp.valueOf());
-            this.data.push({ timestamp: new Date(timestamp.valueOf()), value: Math.max(100, (Math.random() * 1000) % max) });
-        }
-        this.data = this.data.reverse();
-        console.log(this.data);
-    }
-
-    
 
 }
+
+
+// setTimeout(function(){
+        //     this.tempData = [//];
+        //         {timestamp: "Thu Feb 28 2019 22:57:13 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:57:12 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:56:31 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:55:51 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:55:34 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:55:08 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:54:48 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:54:27 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:54:06 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:53:45 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:53:25 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:53:04 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:52:42 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:52:21 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:52:02 GMT+0000 (Greenwich Mean Time)", value: 20.8},
+        //         {timestamp: "Thu Feb 28 2019 22:51:39 GMT+0000 (Greenwich Mean Time)", value: 20.9},
+        //         {timestamp: "Thu Feb 28 2019 22:51:18 GMT+0000 (Greenwich Mean Time)", value: 20.9},
+        //         {timestamp: "Thu Feb 28 2019 22:50:56 GMT+0000 (Greenwich Mean Time)", value: 20.9},
+        //         {timestamp: "Thu Feb 28 2019 22:50:36 GMT+0000 (Greenwich Mean Time)", value: 20.9},
+        //         {timestamp: "Thu Feb 28 2019 22:50:14 GMT+0000 (Greenwich Mean Time)", value: 20.9},
+        //         {timestamp: "Thu Feb 28 2019 22:49:54 GMT+0000 (Greenwich Mean Time)", value: 20.9}];
+        // }.bind(this),500);
