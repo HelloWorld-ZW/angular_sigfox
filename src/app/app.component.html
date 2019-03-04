@@ -1,14 +1,8 @@
 <!--The content below is only a placeholder and can be replaced.-->
 <div style="text-align:center">
-  <!-- <jqxChart #myChart
-    [width]="getWidth()" [height]="500"
-    [title]="'Temperature (°C)'" [enableAxisTextAnimation]="true"
-    [description]="''" [animationDuration]="1000"
-    [showLegend]="true" [enableAnimations]="false" [padding]="padding"
-    [titlePadding]="titlePadding" [source]="tempData" [xAxis]="xAxis"
-    [valueAxis]="valueAxis" [seriesGroups]="seriesGroups" [colorScheme]="'scheme03'">
-</jqxChart> -->
-
-<div id="chartContainer" style="height: 370px; width: 100%; margin-left:auto;margin-right:auto;"></div>
-<span class="badge">{{ tempData.toString() }}</span>
+<div id="tempChartContainer" style="height: 370px; width: 100%; margin-left:auto;margin-right:auto; border-style: solid;"></div>
+<br/>
+<br/>
+<div id="humChartContainer" style="height: 370px; width: 100%; margin-left:auto;margin-right:auto; border-style: solid;"></div>
+<span class="badge">{{ tempData}}</span>
 </div>

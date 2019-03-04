@@ -17,17 +17,14 @@ export class AppComponent {
     latestDataStr:string;
 
     // sigfox data sets
-    tempData: any[] = [];
-    humData: any[] = [];
-    presData: any[] = [];
-    gasData: any[] = [];
+    
 
 
     dayBegin:string = (new Date().setHours(0,0,0,0)).toString(); //ms of dayBegin
     dayEnd:string = (new Date().setHours(23,59,59,999)).toString();;  //ms of dayEnd
     latestDbTimestamp:string =(new Date().getTime()).toString();
 
-    async ngOnInit(): Promise<void>{
+    ngOnInit(){
 
         //this.showData();
         //await this.geInittData();
@@ -35,9 +32,11 @@ export class AppComponent {
         // this.processInitData();
         // console.log(this.tempData );
 
+        let tempData = [];
+        let humData = [];
 
         var dps = [];
-        var chart = new CanvasJS.Chart("chartContainer", {
+        var tempChart = new CanvasJS.Chart("tempChartContainer", {
             theme: "light2",
             title:{
                 text:"Temperature"
@@ -56,10 +55,37 @@ export class AppComponent {
                 type: "spline",
                 name : "Temperature (°C)",
                 showInLegend: true,
-                //markerType: "square",
-                dataPoints: dps
+                markerType: "square",
+                dataPoints: tempData
             }]
         });
+
+        var humChart = new CanvasJS.Chart("humChartContainer", {
+            theme: "light2",
+            title:{
+                text:"Humidity"
+            },
+            animationEnabled: true,
+            exportEnabled: true,
+            axisX: {
+                valueFormatString: "DD/MM/YY hh:mm:ss"      
+            },
+            axisY: {
+                includeZero: false,
+                suffix: "%"
+            },
+            data: [{
+                lineColor: "green",
+                toolTipContent: "<b>{x}</b> : {y}%",
+                type: "spline",
+                name : "Humidity (%)",
+                showInLegend: true,
+                //markerType: "square",
+                dataPoints: humData
+            }]
+        });
+
+
 
         var latest = (new Date().setHours(0,0,0,0)).toString();
         
@@ -83,13 +109,16 @@ export class AppComponent {
 
                     ItemsArray.forEach(function (aItem) {
                         let temp = parseInt(aItem.payload.temp,10)/10;
+                        let hum = parseInt(aItem.payload.hum,10)/10;
                         let timestamp = parseInt(aItem.timestamp,10);
                         console.log(typeof timestamp);
-                        dps.push({ x: new Date(timestamp), y: temp });
+                        tempData.push({ x: new Date(timestamp), y: temp });
+                        humData.push({ x: new Date(timestamp), y: hum });
                         latest = (timestamp+1).toString();
                     }.bind(this));
 
-                    chart.render();
+                    tempChart.render();
+                    humChart.render();
                 })
                 .catch(err=>{console.log(err);});
             }.bind(this);
@@ -106,7 +135,7 @@ export class AppComponent {
 
 
 
-
+/*
 
     geInittData() : Promise<any>{
         
@@ -197,7 +226,7 @@ export class AppComponent {
         }.bind(this),10000);
     }
 
-
+    */
 }
 
 
